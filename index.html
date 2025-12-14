@@ -9,11 +9,20 @@
         h1 { color: #333; }
         h2 { color: #007bff; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
         #status { font-weight: bold; color: #dc3545; margin-bottom: 10px; }
+        .key-input-container { margin-bottom: 20px; padding: 10px; border: 1px dashed #ccc; background: #fff; }
+        #apiKeyInput { width: 100%; padding: 8px; box-sizing: border-box; }
     </style>
 </head>
 <body>
     <h1>Paraglider Retrieve Options</h1>
-    <div id="status">Starting...</div>
+    
+    <div class="key-input-container">
+        <label for="apiKeyInput">Enter Google Maps API Key:</label>
+        <input type="text" id="apiKeyInput" placeholder="Paste your restricted API Key here">
+        <button id="startButton">Start Retrieve Analysis</button>
+    </div>
+
+    <div id="status">Waiting for API Key...</div>
     <div id="results">
         </div>
 
