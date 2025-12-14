@@ -241,7 +241,8 @@
                 
                 if (status === 'OK') {
                     const bestRoute = response.routes[0].legs[0]; 
-                    const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
+//                    const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
+                    const overallArrivalTime = bestRoute.arrival_time.text;
                     
                     processSteps(currentLat, currentLon, bestRoute.steps, overallArrivalTime);
                     
