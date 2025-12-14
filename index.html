@@ -1,30 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>XCTrack Retrieve Demo</title>
+    <title>XCTrack Retrieve Planner</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f9; }
-        .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; padding: 10px; background-color: #f4f4f9; color: #333; }
+        .result-box { border: 1px solid #007bff; background-color: #e6f2ff; margin-bottom: 10px; padding: 15px; border-radius: 5px; }
+        .label { font-weight: bold; color: #007bff; display: inline-block; width: 180px; }
         h1 { color: #333; }
-        .result-box { border: 1px solid #007bff; background-color: #e6f2ff; padding: 15px; margin-top: 15px; border-radius: 5px; }
-        .label { font-weight: bold; color: #007bff; display: inline-block; width: 150px; }
-        #status { color: #dc3545; font-weight: bold; }
+        h2 { color: #007bff; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        #status { font-weight: bold; color: #dc3545; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>XCTrack Demo Page</h1>
-        <p id="status">Loading demo...</p>
-        <div class="result-box">
-            <h2>URL Parameters Read</h2>
-            <div id="url-output"></div>
+    <h1>Paraglider Retrieve Options</h1>
+    <div id="status">Starting...</div>
+    <div id="results">
         </div>
-        <div class="result-box">
-            <h2>Current Location Demo</h2>
-            <div id="location-output"></div>
-        </div>
-    </div>
-    
-    <script src="demo.js"></script>
+
+    <script src="retrieve.js"></script>
 </body>
 </html>
