@@ -18,37 +18,67 @@
         }
         #results-container {
             width: 90vw; 
-            max-width: 400px; 
+            max-width: 400px;
             padding: 10px;
             text-align: center;
         }
 
+        /* The Grid is the heart of the layout. We use 4 columns and merge them to simulate 2 main columns. */
         .output-grid {
             display: grid;
-            grid-template-columns: 1fr 0.5fr 1fr; 
-            gap: 1px;
-            background-color: #333;
+            /* Column layout: 1.5fr (Value) | 0.5fr (Unit) | 1fr (Direction) | 1.5fr (Time/Mode) */
+            grid-template-columns: 2fr 1fr; 
+            gap: 1px; /* Grid line thickness */
+            background-color: #333; /* Dark color for grid lines */
             color: #000;
             border: 1px solid #333;
         }
 
         .grid-cell {
-            background-color: #fff;
-            padding: 5px 0;
+            background-color: #fff; /* White cell background */
+            padding: 8px 5px;
             text-align: center;
-        }
-
-        .value-large {
-            font-size: 3em; 
+            /* Standard font size for all cells */
+            font-size: 2.2em; 
             font-weight: bold;
             line-height: 1.1;
         }
 
-        .value-medium {
-            font-size: 1.5em; 
-            line-height: 1.1;
+        /* Specific styles for the two columns in the image */
+        .col-wide {
+            grid-column: 1 / span 1; /* First main column */
+            text-align: left;
+            padding-left: 15px;
+        }
+        .col-narrow {
+            grid-column: 2 / span 1; /* Second main column */
+            text-align: right;
+            padding-right: 15px;
         }
 
+        /* Override large font size for the distance and mode rows */
+        .distance-value {
+            font-size: 3em;
+            text-align: left;
+        }
+
+        .unit-direction {
+            font-size: 1.5em; /* Smaller font for km, SE */
+            font-weight: normal;
+            vertical-align: top;
+            padding-top: 10px;
+        }
+
+        .mode-value {
+            font-size: 3em;
+        }
+
+        .time-value {
+            font-size: 3em;
+            text-align: right;
+        }
+
+        /* Error/Status messages */
         #status-error {
             color: #dc3545;
             font-weight: bold;
@@ -66,7 +96,7 @@
 
     <script>
         // =========================================================================
-        // XCTrack Paraglider Retrieve Planner Script (Final Version)
+        // XCTrack Paraglider Retrieve Planner Script (Final Image-Matched Version)
         // =========================================================================
 
         let DESTINATION_INPUT = '';
@@ -76,13 +106,12 @@
         function timestampToHHMM(timestamp) {
             let date;
             if (typeof timestamp === 'number') {
-                date = new Date(timestamp * 1000); // Standard: seconds to milliseconds
+                date = new Date(timestamp * 1000); 
             } else {
-                // Fallback for when the API returns a date string (as seen in debug)
+                // Fallback for when the API returns a date string
                 date = new Date(timestamp);
             }
             
-            // Use standard getHours/getMinutes
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
 
@@ -136,20 +165,34 @@
             };
         }
 
-        // --- 3. Helper to format the optimized grid cells ---
-        function createGridCells(value1, unit1, value2, unit2, value3, unit3) {
-            return `
-                <div class="grid-cell value-large">${value1}</div>
-                <div class="grid-cell value-medium">${unit1}</div>
-                <div class="grid-cell value-large">${value2}</div>
-                
-                <div class="grid-cell value-large">${unit2}</div>
-                <div class="grid-cell value-large">${value3}</div>
-                <div class="grid-cell value-large">${unit3}</div>
+        // --- 3. Helper to format the optimized grid cells (2-column simulation) ---
+        function createGridCells(distanceNum, unit, direction, mode, time) {
+            // Row 1: Distance | Unit + Direction
+            const row1 = `
+                <div class="grid-cell col-wide distance-value">${distanceNum}</div>
+                <div class="grid-cell col-narrow unit-direction">${unit} ${direction}</div>
             `;
+            // Row 2: Mode | Time
+            const row2 = `
+                <div class="grid-cell col-wide mode-value">${mode}</div>
+                <div class="grid-cell col-narrow time-value">${time}</div>
+            `;
+            return row1 + row2;
+        }
+
+        // --- 4. Helper to format the vehicle type ---
+        function formatVehicleType(type) {
+            if (!type) return '';
+            
+            // Special case for HEAVY_RAIL -> RAIL
+            if (type.toUpperCase().includes('RAIL')) {
+                return 'RAIL';
+            }
+            // General case: take the first 4 chars and uppercase it (e.g., SUBW -> SUBW)
+            return type.substring(0,4).toUpperCase().trim();
         }
         
-        // --- 4. Core Logic: Process API Steps and Display ---
+        // --- 5. Core Logic: Process API Steps and Display ---
         function processSteps(currentLat, currentLon, steps, overallArrivalTime) {
             const resultsContainer = document.getElementById('results');
             resultsContainer.innerHTML = ''; 
@@ -171,17 +214,12 @@
                     );
                     
                     const departureTime = timestampToHHMM(details.departure_time.value);
-                    const vehicleType = details.line.vehicle.type.substring(0,4).toUpperCase().trim(); 
+                    const vehicleType = formatVehicleType(details.line.vehicle.type); 
 
                     resultsContainer.innerHTML += createGridCells(
                         distanceNum, unit, direction,
-                        vehicleType, departureTime, ''
+                        vehicleType, departureTime
                     );
-                }
-                
-                // Separator/Spacer Row
-                if (tdp1Step && tdp2Step) {
-                    resultsContainer.innerHTML += `<div class="grid-cell" style="grid-column: 1 / span 3; padding: 1px; background-color: #f4f4f9;"></div>`;
                 }
                 
                 // TDP 2
@@ -194,18 +232,18 @@
                     );
                     
                     const departureTime = timestampToHHMM(details.departure_time.value);
-                    const vehicleType = details.line.vehicle.type.substring(0,4).toUpperCase().trim();
+                    const vehicleType = formatVehicleType(details.line.vehicle.type);
 
                     resultsContainer.innerHTML += createGridCells(
                         distanceNum, unit, direction,
-                        vehicleType, departureTime, ''
+                        vehicleType, departureTime
                     );
                 }
 
                 // Final Row: Total Arrival Time
                 resultsContainer.innerHTML += `
-                    <div class="grid-cell value-large" style="grid-column: 1 / span 2;">ARR</div>
-                    <div class="grid-cell value-large">${overallArrivalTime}</div>
+                    <div class="grid-cell col-wide mode-value">ARR</div>
+                    <div class="grid-cell col-narrow time-value">${overallArrivalTime}</div>
                 `;
                 
                 if (!tdp1Step && !tdp2Step) {
@@ -217,12 +255,11 @@
             }
         }
 
-        // --- 5. Core: Call the DirectionsService API ---
+        // --- 6. Core: Call the DirectionsService API ---
         function calculateRetrieveRoute(currentLat, currentLon) {
             const directionsService = new google.maps.DirectionsService();
             
             const request = {
-                // *** FIX APPLIED HERE *** Changed 'lon' to 'currentLon'
                 origin: { lat: currentLat, lng: currentLon }, 
                 destination: DESTINATION_INPUT,
                 travelMode: TRAVEL_MODE,
@@ -237,7 +274,8 @@
             directionsService.route(request, (response, status) => {
                 if (status === 'OK') {
                     const bestRoute = response.routes[0].legs[0]; 
-                    const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
+                    // This uses the numerical value and the fallback logic in timestampToHHMM
+                    const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value); 
                     
                     processSteps(currentLat, currentLon, bestRoute.steps, overallArrivalTime);
                     
@@ -247,7 +285,7 @@
             });
         }
 
-        // --- 6. Main Execution Flow (The Callback Function) ---
+        // --- 7. Main Execution Flow (The Callback Function) ---
         window.initRetrieve = function() {
             TRAVEL_MODE = google.maps.TravelMode.TRANSIT; 
             
