@@ -1,7 +1,7 @@
 // =========================================================================
 // !!! IMPORTANT: REPLACE THIS PLACEHOLDER WITH YOUR ACTUAL API KEY !!!
 // =========================================================================
-const API_KEY = "YOUR_GOOGLE_MAPS_API_KEY_HERE"; 
+const API_KEY = "AIzaSyDeSV9DIreKvEZVwwgdDuKojIS1NfR__gI"; 
 // =========================================================================
 
 
