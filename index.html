@@ -17,17 +17,18 @@
             min-height: 100vh;
         }
         #results-container {
-            width: 90vw; 
+            width: auto; /* Allow the container to shrink to fit content */
             max-width: 400px;
-            padding: 0; /* Minimized padding */
+            padding: 0; 
             text-align: center;
         }
 
         /* The Grid for the data */
         .output-grid {
             display: grid;
-            /* 2 columns total: Left (2fr) and Right (1fr) */
-            grid-template-columns: 2fr 1fr; 
+            /* 1. Column 1: Only as wide as the widest content (e.g., 'RAIL'). 
+               2. Column 2: Takes up all remaining space (1fr). */
+            grid-template-columns: max-content 1fr; 
             gap: 1px;
             background-color: #333; 
             color: #000;
@@ -40,53 +41,31 @@
             padding: 3px 0; /* Reduced vertical padding */
             text-align: center;
             font-weight: bold;
-            font-size: 3em; /* Consistent large font size for all data */
-            line-height: 1.1; /* Consistent line height */
+            font-size: 3em; 
+            line-height: 1.1; 
         }
 
         /* --- TDP STEP STYLES --- */
 
-        /* TOP-LEFT: Distance (e.g., 1.9 or 3.9) */
-        .distance-value {
+        /* Left Column: Distance, Mode, ARR label */
+        .distance-value, .mode-value, .arr-label {
             grid-column: 1 / span 1; 
             text-align: left;
-            padding-left: 10px; /* Reduced padding */
+            padding-left: 5px; /* Minimized padding */
         }
 
-        /* TOP-RIGHT: Direction (e.g., SE) - NOTE: 'km' removed here */
-        .direction-only {
+        /* Right Column: Direction, Time, ARR Time */
+        .direction-only, .time-value, .arr-time {
             grid-column: 2 / span 1; 
+            text-align: right;
+            padding-right: 5px; /* Minimized padding */
+        }
+
+        /* Ensure the direction is consistently aligned right */
+        .direction-only {
             display: flex; 
-            justify-content: flex-end; /* Align to the right edge */
+            justify-content: flex-end; 
             align-items: center; 
-            padding-right: 10px; /* Reduced padding */
-        }
-
-        /* BOTTOM-LEFT: Mode (e.g., BUS or RAIL) */
-        .mode-value {
-            grid-column: 1 / span 1;
-            text-align: left;
-            padding-left: 10px; /* Reduced padding */
-        }
-
-        /* BOTTOM-RIGHT: Departure Time (e.g., 06:26) */
-        .time-value {
-            grid-column: 2 / span 1;
-            text-align: right;
-            padding-right: 10px; /* Reduced padding */
-        }
-
-        /* ARRIVAL ROW STYLES (Single row at the bottom) */
-        .arr-label {
-            grid-column: 1 / span 1;
-            text-align: left;
-            padding-left: 10px; /* Reduced padding */
-        }
-
-        .arr-time {
-            grid-column: 2 / span 1;
-            text-align: right;
-            padding-right: 10px; /* Reduced padding */
         }
 
         /* Error/Status messages */
