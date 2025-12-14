@@ -4,7 +4,7 @@
     <title>XCTrack Retrieve Planner</title>
     <style>
         /* ----------------------------------------------------- */
-        /* OPTIMIZED STYLES FOR CONSISTENT FONT & MINIMAL WHITESPACE */
+        /* OPTIMIZED STYLES: CENTERED OUTPUT & MINIMAL WHITESPACE */
         /* ----------------------------------------------------- */
         body {
             font-family: Arial, sans-serif;
@@ -17,7 +17,7 @@
             min-height: 100vh;
         }
         #results-container {
-            width: auto; /* Allow the container to shrink to fit content */
+            width: auto; 
             max-width: 400px;
             padding: 0; 
             text-align: center;
@@ -26,8 +26,7 @@
         /* The Grid for the data */
         .output-grid {
             display: grid;
-            /* 1. Column 1: Only as wide as the widest content (e.g., 'RAIL'). 
-               2. Column 2: Takes up all remaining space (1fr). */
+            /* Column 1: Only as wide as the widest content. Column 2: Takes up remaining space. */
             grid-template-columns: max-content 1fr; 
             gap: 1px;
             background-color: #333; 
@@ -35,36 +34,28 @@
             border: 1px solid #333;
         }
 
-        /* Base style for all cells: Consistent large font and minimal padding */
+        /* Base style for all cells: Consistent large font, minimal padding, and CENTERED */
         .grid-cell {
             background-color: #fff;
-            padding: 3px 0; /* Reduced vertical padding */
-            text-align: center;
+            padding: 3px 5px; /* Added 5px horizontal padding back for separation from edges */
+            text-align: center; /* <<< CENTERING APPLIED HERE */
             font-weight: bold;
             font-size: 3em; 
             line-height: 1.1; 
         }
 
-        /* --- TDP STEP STYLES --- */
+        /* --- TDP STEP STYLES (All centered now) --- */
 
         /* Left Column: Distance, Mode, ARR label */
         .distance-value, .mode-value, .arr-label {
             grid-column: 1 / span 1; 
-            text-align: left;
-            padding-left: 5px; /* Minimized padding */
         }
 
         /* Right Column: Direction, Time, ARR Time */
         .direction-only, .time-value, .arr-time {
             grid-column: 2 / span 1; 
-            text-align: right;
-            padding-right: 5px; /* Minimized padding */
-        }
-
-        /* Ensure the direction is consistently aligned right */
-        .direction-only {
             display: flex; 
-            justify-content: flex-end; 
+            justify-content: center; /* Center horizontally in flex container */
             align-items: center; 
         }
 
@@ -157,11 +148,9 @@
         function formatVehicleType(type) {
             if (!type) return '';
             
-            // Fix HEAVY_RAIL/SUBWAY/COMMUTER_TRAIN, etc. to RAIL
             if (type.toUpperCase().includes('RAIL') || type.toUpperCase().includes('TRAIN')) {
                 return 'RAIL';
             }
-            // General case: take the first 4 chars and uppercase it
             return type.substring(0,4).toUpperCase().trim();
         }
         
@@ -260,6 +249,12 @@
             }
             
             directionsService.route(request, (response, status) => {
+                // *** CONSOLE LOGGING REINTRODUCED HERE ***
+                console.log("--- Google Maps Directions API Response ---");
+                console.log("Status:", status);
+                console.log("Full Response Object:", response);
+                console.log("-----------------------------------------");
+                
                 if (status === 'OK') {
                     const bestRoute = response.routes[0].legs[0]; 
                     const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value); 
