@@ -18,7 +18,7 @@
         }
         #results-container {
             width: 90vw; 
-            max-width: 400px;
+            max-width: 400px; 
             padding: 10px;
             text-align: center;
         }
@@ -72,16 +72,13 @@
         let DESTINATION_INPUT = '';
         let TRAVEL_MODE; 
         
-        // --- Helper to convert timestamp (seconds) to HH:MM (24h format) ---
+        // --- Helper to convert timestamp (seconds/string) to HH:MM (24h format) ---
         function timestampToHHMM(timestamp) {
-            // Check if timestamp is a number. If it is a string (due to previous error), 
-            // we will create a new Date from it, but the correct input is the NUMBER.
             let date;
             if (typeof timestamp === 'number') {
                 date = new Date(timestamp * 1000); // Standard: seconds to milliseconds
             } else {
-                // FALLBACK: If Google sends a Date string (like the debug log suggested),
-                // we parse it directly without multiplying. This is NOT standard but fixes the error.
+                // Fallback for when the API returns a date string (as seen in debug)
                 date = new Date(timestamp);
             }
             
@@ -225,7 +222,8 @@
             const directionsService = new google.maps.DirectionsService();
             
             const request = {
-                origin: { lat: currentLat, lng: lon },
+                // *** FIX APPLIED HERE *** Changed 'lon' to 'currentLon'
+                origin: { lat: currentLat, lng: currentLon }, 
                 destination: DESTINATION_INPUT,
                 travelMode: TRAVEL_MODE,
             };
@@ -239,8 +237,6 @@
             directionsService.route(request, (response, status) => {
                 if (status === 'OK') {
                     const bestRoute = response.routes[0].legs[0]; 
-                    
-                    // The overall arrival time is the one causing the issue. We'll pass the raw value.
                     const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
                     
                     processSteps(currentLat, currentLon, bestRoute.steps, overallArrivalTime);
