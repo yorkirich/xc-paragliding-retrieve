@@ -4,27 +4,39 @@
     <title>XCTrack Retrieve Planner</title>
     <style>
         body { font-family: sans-serif; padding: 10px; background-color: #f4f4f9; color: #333; }
-        .result-box { border: 1px solid #007bff; background-color: #e6f2ff; margin-bottom: 10px; padding: 15px; border-radius: 5px; }
-        .label { font-weight: bold; color: #007bff; display: inline-block; width: 180px; }
-        h1 { color: #333; }
-        h2 { color: #007bff; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-        #status { font-weight: bold; color: #dc3545; margin-bottom: 10px; }
+        /* The result box is the only displayed element */
+        .result-box { 
+            border: 1px solid #007bff; 
+            background-color: #e6f2ff; 
+            margin-bottom: 10px; 
+            padding: 10px; 
+            border-radius: 5px; 
+            font-size: 1.1em;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
-    <h1>Paraglider Retrieve Options</h1>
-    <div id="status">Starting setup...</div>
     <div id="results">
         </div>
 
     <script>
         // =========================================================================
-        // XCTrack Paraglider Retrieve Planner Script (Consolidated Logic)
+        // XCTrack Paraglider Retrieve Planner Script (Minimalist Version)
         // =========================================================================
 
         let DESTINATION_INPUT = '';
-        let TRAVEL_MODE; // Will be set after google.maps is defined
+        let TRAVEL_MODE; 
 
+        // --- Helper to convert timestamp (seconds) to HH:MM (24h format) ---
+        function timestampToHHMM(timestamp) {
+            // `value` is in seconds, so convert to milliseconds
+            const date = new Date(timestamp * 1000); 
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+        
         // --- 1. Function to parse URL parameters ---
         function getUrlParameter(name) {
             name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
@@ -66,31 +78,33 @@
             };
         }
 
-        // --- 3. Helper to format the output ---
-        function formatTDPResult(label, name, dist, dir, duration, time, travelType) {
+        // --- 3. Helper to format the succinct output ---
+        // Outputs two lines: 1.9km SE. BUS. | Dep:11:26. Arr: 03:45
+        function formatTDPResult(dist, dir, departureTime, vehicleType, totalArrivalTime) {
             const resultsContainer = document.getElementById('results');
             const box = document.createElement('div');
             box.className = 'result-box';
-            box.innerHTML = `
-                <p><span class="label">${label}:</span> **${name}**</p>
-                <p><span class="label">Direction/Distance:</span> ${dist} ${dir}</p>
-                <p><span class="label">Travel Mode:</span> ${travelType}</p>
-                <p><span class="label">Departure Time:</span> **${time}**</p>
-                <p><span class="label">Journey Duration:</span> ${duration}</p>
-            `;
+
+            // Line 1: Distance Direction. VehicleType
+            const line1 = `<span style="font-weight: bold;">${dist} ${dir}.</span> ${vehicleType}.`;
+
+            // Line 2: Dep:hh:mm. Arr: hh:mm
+            const line2 = `Dep:${departureTime}. Arr: ${totalArrivalTime}.`;
+
+            box.innerHTML = `<p>${line1}</p><p>${line2}</p>`;
             return box;
         }
 
         // --- 4. Core Logic: Process API Steps and Display ---
-        function processSteps(currentLat, currentLon, steps, overallDistance, overallDuration) {
+        function processSteps(currentLat, currentLon, steps, totalArrivalTime) {
             const resultsContainer = document.getElementById('results');
-            resultsContainer.innerHTML = `<h2>Retrieve Options (${TRAVEL_MODE}):</h2>`; 
-            
-            const travelModeDisplay = TRAVEL_MODE.charAt(0) + TRAVEL_MODE.slice(1).toLowerCase(); // Capitalize first letter
+            resultsContainer.innerHTML = ''; // Clear any loading messages
 
             if (TRAVEL_MODE === google.maps.TravelMode.TRANSIT) {
-                // --- TRANSIT Mode Logic ---
+                // Filter for steps that are actual public transport legs
                 const transportSteps = steps.filter(step => step.travel_mode === google.maps.TravelMode.TRANSIT.toUpperCase());
+                
+                // Get the first two departure points (TDP1 and TDP2)
                 const tdp1Step = transportSteps[0];
                 const tdp2Step = transportSteps[1];
                 
@@ -102,63 +116,52 @@
                         currentLat, currentLon, tdp1Loc.lat(), tdp1Loc.lng()
                     );
                     
+                    const departureTime = timestampToHHMM(details.departure_time.value);
+                    const vehicleType = details.line.vehicle.type;
+
                     resultsContainer.appendChild(formatTDPResult(
-                        'TDP1 (First Departure)',
-                        details.departure_stop.name,
                         distance,
                         direction,
-                        tdp1Step.duration.text,
-                        details.departure_time.text,
-                        `${details.line.vehicle.type} (${details.line.name})`
+                        departureTime,
+                        vehicleType,
+                        totalArrivalTime
                     ));
                 }
-                
+
                 if (tdp2Step && tdp2Step.transit) {
                     const details = tdp2Step.transit;
                     const tdp2Loc = details.departure_stop.location;
 
+                    // Note: Calculating distance from current location to TDP2 stop
                     const { distance, direction } = calculateDistanceAndDirection(
                         currentLat, currentLon, tdp2Loc.lat(), tdp2Loc.lng()
                     );
 
+                    const departureTime = timestampToHHMM(details.departure_time.value);
+                    const vehicleType = details.line.vehicle.type;
+
                     resultsContainer.appendChild(formatTDPResult(
-                        'TDP2 (Second Departure)',
-                        details.departure_stop.name,
                         distance,
                         direction,
-                        tdp2Step.duration.text,
-                        details.departure_time.text,
-                        `${details.line.vehicle.type} (${details.line.name})`
+                        departureTime,
+                        vehicleType,
+                        totalArrivalTime
                     ));
                 }
-
+                
                 if (!tdp1Step && !tdp2Step) {
-                    resultsContainer.innerHTML += '<p>No direct public transport steps found. Try a different time or use Driving mode.</p>';
+                    resultsContainer.innerHTML = `<p style="color:#dc3545;">No public transport route found. Status: ZERO_RESULTS.</p>`;
                 }
 
             } else {
-                // --- DRIVING/WALKING/BICYCLING Mode Logic (Overall Trip Info) ---
-                resultsContainer.innerHTML = `<h2>Retrieve Option (${travelModeDisplay}):</h2>`; 
-                
-                resultsContainer.appendChild(formatTDPResult(
-                    'Overall Journey',
-                    'To ' + DESTINATION_INPUT,
-                    overallDistance.text,
-                    '', // Direction not crucial for overall distance
-                    overallDuration.text,
-                    new Date().toLocaleTimeString(),
-                    travelModeDisplay
-                ));
+                // If not transit, display nothing as per the minimalist request focusing on TDPs
+                resultsContainer.innerHTML = '';
             }
-            
-            document.getElementById('status').innerText = 'Route analysis complete.';
         }
 
         // --- 5. Core: Call the DirectionsService API ---
         function calculateRetrieveRoute(currentLat, currentLon) {
             const directionsService = new google.maps.DirectionsService();
-            
-            document.getElementById('status').innerText = `Searching for ${TRAVEL_MODE} route to ${DESTINATION_INPUT}...`;
             
             const request = {
                 origin: { lat: currentLat, lng: currentLon },
@@ -175,22 +178,23 @@
             directionsService.route(request, (response, status) => {
                 if (status === 'OK') {
                     const bestRoute = response.routes[0].legs[0]; 
+                    // Extract total arrival time for the entire journey
+                    const totalArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
                     
-                    processSteps(currentLat, currentLon, bestRoute.steps, bestRoute.distance, bestRoute.duration);
+                    processSteps(currentLat, currentLon, bestRoute.steps, totalArrivalTime);
                     
                 } else {
-                    document.getElementById('status').innerText = `Error: Directions request failed. Status: ${status}. Check destination/key/API console.`;
-                    document.getElementById('results').innerHTML = `<p>Destination: ${DESTINATION_INPUT}</p><p>Error details: ${status}</p>`;
+                    document.getElementById('results').innerHTML = `<p style="color:#dc3545;">Directions request failed. Status: ${status}.</p>`;
                 }
             });
         }
 
         // --- 6. Main Execution Flow (The Callback Function) ---
         window.initRetrieve = function() {
-            // Now that 'google' is defined, we can set the default mode.
-            TRAVEL_MODE = google.maps.TravelMode.DRIVING; 
+            // 1. Set default mode to TRANSIT
+            TRAVEL_MODE = google.maps.TravelMode.TRANSIT; 
             
-            // 1. Get Destination and Mode from URL
+            // 2. Get Destination and Mode from URL
             DESTINATION_INPUT = getUrlParameter('dest');
             const modeParam = getUrlParameter('mode').toUpperCase(); 
             
@@ -199,24 +203,20 @@
             }
             
             if (!DESTINATION_INPUT) {
-                document.getElementById('status').innerText = "FATAL ERROR: Destination parameter 'dest' not found in URL. Use format: ?dest=PostcodeOrLatLon";
+                document.getElementById('results').innerHTML = "<p style='color:#dc3545;'>FATAL ERROR: Destination parameter 'dest' not found.</p>";
                 return; 
             }
 
-            // 2. Start Geolocation
+            // 3. Start Geolocation
             if (navigator.geolocation) {
-                document.getElementById('status').innerText = `Destination: ${DESTINATION_INPUT}. Mode: ${TRAVEL_MODE}. Getting current location...`;
-                
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         const lat = position.coords.latitude;
                         const lon = position.coords.longitude;
-                        document.getElementById('status').innerText = `Location found. Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}. Calculating route...`;
-                        
                         calculateRetrieveRoute(lat, lon);
                     },
                     (error) => {
-                        document.getElementById('status').innerText = `Error getting location: ${error.message}. Ensure location services are enabled.`;
+                        document.getElementById('results').innerHTML = `<p style="color:#dc3545;">Error getting location: ${error.message}.</p>`;
                     },
                     {
                         enableHighAccuracy: true,
@@ -225,7 +225,7 @@
                     }
                 );
             } else {
-                document.getElementById('status').innerText = "Geolocation is not supported by this browser/device.";
+                document.getElementById('results').innerHTML = "<p style='color:#dc3545;'>Geolocation is not supported by this browser/device.</p>";
             }
         }
     </script>
@@ -234,7 +234,6 @@
         const apiKey = getUrlParameter('key');
         const script = document.createElement('script');
         
-        // This line addresses the 'loading=async' warning by adding 'async' and 'defer'
         script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initRetrieve&libraries=places`;
         script.defer = true;
         script.async = true; 
