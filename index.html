@@ -13,10 +13,26 @@
 </head>
 <body>
     <h1>Paraglider Retrieve Options</h1>
-    <div id="status">Starting retrieve analysis...</div>
+    <div id="status">Loading Google Maps API...</div>
     <div id="results">
         </div>
 
     <script src="retrieve.js"></script>
+
+    <script>
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            const results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' ')).trim();
+        }
+
+        const apiKey = getUrlParameter('key');
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initRetrieve&libraries=places`;
+        script.defer = true;
+        document.head.appendChild(script);
+
+    </script>
 </body>
 </html>
