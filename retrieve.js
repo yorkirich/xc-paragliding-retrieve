@@ -1,10 +1,3 @@
-// =========================================================================
-// !!! IMPORTANT: REPLACE THIS PLACEHOLDER WITH YOUR ACTUAL API KEY !!!
-// =========================================================================
-const API_KEY = "AIzaSyDeSV9DIreKvEZVwwgdDuKojIS1NfR__gI"; 
-// =========================================================================
-
-
 // --- 1. Function to parse URL parameters ---
 function getUrlParameter(name) {
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
@@ -14,6 +7,7 @@ function getUrlParameter(name) {
 }
 
 // --- 2. Calculate Distance and Direction (Haversine/Bearing) ---
+// (This function remains unchanged from the previous version)
 function calculateDistanceAndDirection(lat1, lon1, lat2, lon2) {
     const R = 6371; // Radius of Earth in km
     const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -21,13 +15,11 @@ function calculateDistanceAndDirection(lat1, lon1, lat2, lon2) {
     lat1 = lat1 * (Math.PI / 180);
     lat2 = lat2 * (Math.PI / 180);
 
-    // Haversine formula for distance (to calculate distance to TDP)
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
               Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distanceKm = R * c; 
     
-    // Bearing/Direction calculation
     const y = Math.sin(dLon) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) -
               Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
@@ -35,11 +27,9 @@ function calculateDistanceAndDirection(lat1, lon1, lat2, lon2) {
     
     bearing = (bearing + 360) % 360; 
 
-    // Convert bearing to cardinal direction (N, NE, E, etc.)
     const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
     const direction = directions[Math.round(bearing / 45) % 8];
 
-    // Convert distance to meters if < 1km
     const displayDistance = distanceKm < 1 ? 
         (distanceKm * 1000).toFixed(0) + ' m' : 
         distanceKm.toFixed(1) + ' km';
@@ -51,6 +41,7 @@ function calculateDistanceAndDirection(lat1, lon1, lat2, lon2) {
 }
 
 // --- 3. Helper to format the output ---
+// (This function remains unchanged from the previous version)
 function formatTDPResult(label, name, dist, dir, duration, time, travelType) {
     const resultsContainer = document.getElementById('results');
     const box = document.createElement('div');
@@ -66,16 +57,15 @@ function formatTDPResult(label, name, dist, dir, duration, time, travelType) {
 }
 
 // --- 4. Core Logic: Process API Steps and Display ---
+// (This function remains unchanged from the previous version)
 function processSteps(currentLat, currentLon, steps) {
     const transportSteps = steps.filter(step => step.travel_mode === 'TRANSIT');
     const resultsContainer = document.getElementById('results');
     resultsContainer.innerHTML = '<h2>Public Transport Retrieve Options:</h2>'; 
 
-    // Find the first and second transport departure points (TDP1 and TDP2)
     const tdp1Step = transportSteps[0];
     const tdp2Step = transportSteps[1];
     
-    // Process TDP1
     if (tdp1Step) {
         const details = tdp1Step.transit_details;
         const tdp1Loc = details.departure_stop.location;
@@ -95,7 +85,6 @@ function processSteps(currentLat, currentLon, steps) {
         ));
     }
     
-    // Process TDP2 (Optional, only if a second transport step exists)
     if (tdp2Step) {
         const details = tdp2Step.transit_details;
         const tdp2Loc = details.departure_stop.location;
@@ -104,7 +93,6 @@ function processSteps(currentLat, currentLon, steps) {
             currentLat, currentLon, tdp2Loc.lat, tdp2Loc.lng
         );
 
-        // Note: The distance/direction for TDP2 is still calculated from *your current location*
         resultsContainer.appendChild(formatTDPResult(
             'TDP2 (Second Departure)',
             details.departure_stop.name,
@@ -123,16 +111,15 @@ function processSteps(currentLat, currentLon, steps) {
     document.getElementById('status').innerText = 'Route analysis complete.';
 }
 
-// --- 5. Call the Directions API ---
-async function calculateRetrieveRoute(currentLat, currentLon, DESTINATION_INPUT) {
+// --- 5. Call the Directions API (Now requires the API Key) ---
+async function calculateRetrieveRoute(currentLat, currentLon, DESTINATION_INPUT, apiKey) {
     const origin = `${currentLat},${currentLon}`;
 
-    // Construct the API URL
     const url = `https://maps.googleapis.com/maps/api/directions/json?` +
                 `origin=${origin}` +
                 `&destination=${DESTINATION_INPUT}` +
-                `&mode=transit` + // Crucial for public transport
-                `&key=${API_KEY}`;
+                `&mode=transit` +
+                `&key=${apiKey}`; // Use the dynamic key
     
     document.getElementById('status').innerText = `Searching for route to ${DESTINATION_INPUT}...`;
 
@@ -141,27 +128,36 @@ async function calculateRetrieveRoute(currentLat, currentLon, DESTINATION_INPUT)
         const data = await response.json();
 
         if (data.status === "OK" && data.routes.length > 0) {
-            // We use the first leg of the best route
             const bestRoute = data.routes[0].legs[0]; 
             processSteps(currentLat, currentLon, bestRoute.steps);
         } else {
             document.getElementById('status').innerText = `Error: Could not find a public transport route. Status: ${data.status}`;
-            document.getElementById('results').innerHTML = `<p>Destination: ${DESTINATION_INPUT}</p>`;
+            document.getElementById('results').innerHTML = `<p>Destination: ${DESTINATION_INPUT}</p><p>Check your destination format (Postcode or Lat,Lon) and ensure your API Key is correct.</p>`;
         }
     } catch (error) {
         document.getElementById('status').innerText = `Fatal Error fetching directions: ${error}`;
     }
 }
 
-// --- 6. Main Execution Flow (gets location and starts API call) ---
+// --- 6. Main Execution Flow (Triggered by Button Click) ---
 function startRetrieveProcess() {
+    // 1. Get Destination from URL
     const destinationParam = getUrlParameter('dest');
     
+    // 2. Get API Key from Input Field
+    const apiKey = document.getElementById('apiKeyInput').value;
+
     if (!destinationParam) {
-        document.getElementById('status').innerText = "ERROR: Destination parameter 'dest' not found in URL.";
+        document.getElementById('status').innerText = "ERROR: Destination parameter 'dest' not found in URL. Check XCTrack config.";
         return; 
     }
-
+    
+    if (!apiKey) {
+        document.getElementById('status').innerText = "ERROR: Please paste your Google Maps API Key and click the button.";
+        return;
+    }
+    
+    // 3. Start Geolocation
     if (navigator.geolocation) {
         document.getElementById('status').innerText = "Getting device location...";
         
@@ -170,10 +166,10 @@ function startRetrieveProcess() {
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
                 document.getElementById('status').innerText = `Location found. Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}.`;
-                calculateRetrieveRoute(lat, lon, destinationParam);
+                calculateRetrieveRoute(lat, lon, destinationParam, apiKey);
             },
             (error) => {
-                document.getElementById('status').innerText = `Error getting location: ${error.message}`;
+                document.getElementById('status').innerText = `Error getting location: ${error.message}. Ensure location services are enabled.`;
             },
             {
                 enableHighAccuracy: true,
@@ -186,5 +182,8 @@ function startRetrieveProcess() {
     }
 }
 
-// Kick off the script
-startRetrieveProcess();
+// --- 7. Event Listener (Attaches start process to button) ---
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('startButton').addEventListener('click', startRetrieveProcess);
+    document.getElementById('status').innerText = "Waiting for API Key and 'Start' click.";
+});
