@@ -38,7 +38,6 @@
             background-color: #fff; /* White cell background */
             padding: 5px 0;
             text-align: center;
-            /* Enforce specific font sizes for readability */
         }
 
         /* Large font for distance/time/mode */
@@ -73,21 +72,36 @@
     <script>
         // =========================================================================
         // XCTrack Paraglider Retrieve Planner Script (Consolidated Logic)
-        // With Console Debugging and Optimized Layout Logic
         // =========================================================================
 
         let DESTINATION_INPUT = '';
         let TRAVEL_MODE; 
-
-        // --- Helper to format output time (hh:mm) from timestamp (seconds) ---
+        
+        // --- Helper to convert timestamp (seconds) to HH:MM (24h format) ---
         function timestampToHHMM(timestamp) {
-            // value is in seconds, so convert to milliseconds
+            // timestamp from Google is in seconds. Multiply by 1000 for JS Date constructor.
             const date = new Date(timestamp * 1000); 
+            
+            // LOGGING FOR DEBUGGING TIME ERROR
+            console.log(`[TIME DEBUG] Raw Timestamp Value: ${timestamp}`);
+            console.log(`[TIME DEBUG] JS Date Object Created: ${date.toString()}`);
+            
+            // Use standard getHours/getMinutes
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            console.log(`[TIME DEBUG] Extracted Time: ${hours}:${minutes}`);
+
             return `${hours}:${minutes}`;
         }
         
+        // --- Function to log errors to the display ---
+        function displayError(message) {
+            document.getElementById('status-error').style.display = 'block';
+            document.getElementById('status-error').innerText = message;
+            document.getElementById('results').innerHTML = ''; // Hide grid on error
+        }
+
         // --- 1. Function to parse URL parameters ---
         function getUrlParameter(name) {
             name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
@@ -98,7 +112,7 @@
         
         // --- 2. Calculate Distance and Direction (Haversine/Bearing) ---
         function calculateDistanceAndDirection(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Radius of Earth in km
+            const R = 6371; 
             const dLat = (lat2 - lat1) * (Math.PI / 180);
             const dLon = (lon2 - lon1) * (Math.PI / 180);
             lat1 = lat1 * (Math.PI / 180);
@@ -119,7 +133,6 @@
             const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
             const direction = directions[Math.round(bearing / 45) % 8];
 
-            // Distance as a number for large display, and unit for small display
             const distanceNum = distanceKm.toFixed(1);
 
             return {
@@ -145,7 +158,8 @@
         // --- 4. Core Logic: Process API Steps and Display ---
         function processSteps(currentLat, currentLon, steps, overallArrivalTime) {
             const resultsContainer = document.getElementById('results');
-            resultsContainer.innerHTML = ''; // Clear results
+            resultsContainer.innerHTML = ''; 
+            document.getElementById('status-error').style.display = 'none';
 
             if (TRAVEL_MODE === google.maps.TravelMode.TRANSIT) {
                 const transportSteps = steps.filter(step => step.travel_mode === google.maps.TravelMode.TRANSIT.toUpperCase());
@@ -163,17 +177,15 @@
                     );
                     
                     const departureTime = timestampToHHMM(details.departure_time.value);
-                    const vehicleType = details.line.vehicle.type.substring(0,4).toUpperCase().trim(); // BUS, RAIL, TRAM, etc.
+                    const vehicleType = details.line.vehicle.type.substring(0,4).toUpperCase().trim(); 
 
-                    // Row 1: Distance | km | SE
-                    // Row 2: BUS/RAIL | 07:20 (Departure Time) | (empty)
                     resultsContainer.innerHTML += createGridCells(
                         distanceNum, unit, direction,
                         vehicleType, departureTime, ''
                     );
                 }
                 
-                // Separator/Spacer Row (If both TDPs exist, or if we want a line)
+                // Separator/Spacer Row
                 if (tdp1Step && tdp2Step) {
                     resultsContainer.innerHTML += `<div class="grid-cell" style="grid-column: 1 / span 3; padding: 1px; background-color: #f4f4f9;"></div>`;
                 }
@@ -190,8 +202,6 @@
                     const departureTime = timestampToHHMM(details.departure_time.value);
                     const vehicleType = details.line.vehicle.type.substring(0,4).toUpperCase().trim();
 
-                    // Row 3: Distance | km | E
-                    // Row 4: RAIL | 05:00 (Departure Time) | (empty)
                     resultsContainer.innerHTML += createGridCells(
                         distanceNum, unit, direction,
                         vehicleType, departureTime, ''
@@ -205,14 +215,11 @@
                 `;
                 
                 if (!tdp1Step && !tdp2Step) {
-                    document.getElementById('status-error').style.display = 'block';
-                    document.getElementById('status-error').innerText = 'NO TRANSIT FOUND.';
+                    displayError('NO TRANSIT FOUND.');
                 }
 
             } else {
-                // Non-Transit Mode: Hide the grid, show a simple error (as requested to focus on TDPs)
-                document.getElementById('status-error').style.display = 'block';
-                document.getElementById('status-error').innerText = 'SUCCESS. Switch to &mode=transit for TDP display.';
+                displayError('SUCCESS. Switch to &mode=transit for TDP display.');
             }
         }
 
@@ -241,14 +248,12 @@
                 
                 if (status === 'OK') {
                     const bestRoute = response.routes[0].legs[0]; 
-//                    const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
-                    const overallArrivalTime = bestRoute.arrival_time.text;
+                    const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
                     
                     processSteps(currentLat, currentLon, bestRoute.steps, overallArrivalTime);
                     
                 } else {
-                    document.getElementById('status-error').style.display = 'block';
-                    document.getElementById('status-error').innerText = `API FAILED: ${status}`;
+                    displayError(`API FAILED: ${status}`);
                 }
             });
         }
@@ -265,8 +270,7 @@
             }
             
             if (!DESTINATION_INPUT) {
-                document.getElementById('status-error').style.display = 'block';
-                document.getElementById('status-error').innerText = "ERROR: Missing 'dest' parameter.";
+                displayError("ERROR: Missing 'dest' parameter.");
                 return; 
             }
 
@@ -278,8 +282,7 @@
                         calculateRetrieveRoute(lat, lon);
                     },
                     (error) => {
-                        document.getElementById('status-error').style.display = 'block';
-                        document.getElementById('status-error').innerText = `LOCATION ERROR: ${error.message}.`;
+                        displayError(`LOCATION ERROR: ${error.message}.`);
                     },
                     {
                         enableHighAccuracy: true,
@@ -288,8 +291,7 @@
                     }
                 );
             } else {
-                document.getElementById('status-error').style.display = 'block';
-                document.getElementById('status-error').innerText = "ERROR: Geolocation not supported.";
+                displayError("ERROR: Geolocation not supported.");
             }
         }
     </script>
