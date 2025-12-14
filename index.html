@@ -17,43 +17,38 @@
             min-height: 100vh;       /* Ensure body takes full viewport height */
         }
         #results-container {
-            width: 90vw; /* Use a relative width for large screen area */
-            max-width: 400px; /* Maximize font size but keep constrained */
+            width: 90vw; 
+            max-width: 400px;
             padding: 10px;
             text-align: center;
         }
 
-        /* Styling for the main output grid (TDP1 and TDP2) */
         .output-grid {
             display: grid;
-            /* Define 3 columns for Value, Unit/Mode, Time/Direction */
             grid-template-columns: 1fr 0.5fr 1fr; 
-            gap: 1px; /* Grid line thickness */
-            background-color: #333; /* Dark color for grid lines */
+            gap: 1px;
+            background-color: #333;
             color: #000;
             border: 1px solid #333;
         }
 
         .grid-cell {
-            background-color: #fff; /* White cell background */
+            background-color: #fff;
             padding: 5px 0;
             text-align: center;
         }
 
-        /* Large font for distance/time/mode */
         .value-large {
-            font-size: 3em; /* Very large font for primary numbers */
+            font-size: 3em; 
             font-weight: bold;
             line-height: 1.1;
         }
 
-        /* Medium font for units (km, SE) */
         .value-medium {
-            font-size: 1.5em; /* Medium font for units and direction */
+            font-size: 1.5em; 
             line-height: 1.1;
         }
 
-        /* Error/Status messages */
         #status-error {
             color: #dc3545;
             font-weight: bold;
@@ -71,7 +66,7 @@
 
     <script>
         // =========================================================================
-        // XCTrack Paraglider Retrieve Planner Script (Consolidated Logic)
+        // XCTrack Paraglider Retrieve Planner Script (Final Version)
         // =========================================================================
 
         let DESTINATION_INPUT = '';
@@ -79,18 +74,20 @@
         
         // --- Helper to convert timestamp (seconds) to HH:MM (24h format) ---
         function timestampToHHMM(timestamp) {
-            // timestamp from Google is in seconds. Multiply by 1000 for JS Date constructor.
-            const date = new Date(timestamp * 1000); 
-            
-            // LOGGING FOR DEBUGGING TIME ERROR
-            console.log(`[TIME DEBUG] Raw Timestamp Value: ${timestamp}`);
-            console.log(`[TIME DEBUG] JS Date Object Created: ${date.toString()}`);
+            // Check if timestamp is a number. If it is a string (due to previous error), 
+            // we will create a new Date from it, but the correct input is the NUMBER.
+            let date;
+            if (typeof timestamp === 'number') {
+                date = new Date(timestamp * 1000); // Standard: seconds to milliseconds
+            } else {
+                // FALLBACK: If Google sends a Date string (like the debug log suggested),
+                // we parse it directly without multiplying. This is NOT standard but fixes the error.
+                date = new Date(timestamp);
+            }
             
             // Use standard getHours/getMinutes
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
-            
-            console.log(`[TIME DEBUG] Extracted Time: ${hours}:${minutes}`);
 
             return `${hours}:${minutes}`;
         }
@@ -99,7 +96,7 @@
         function displayError(message) {
             document.getElementById('status-error').style.display = 'block';
             document.getElementById('status-error').innerText = message;
-            document.getElementById('results').innerHTML = ''; // Hide grid on error
+            document.getElementById('results').innerHTML = '';
         }
 
         // --- 1. Function to parse URL parameters ---
@@ -228,7 +225,7 @@
             const directionsService = new google.maps.DirectionsService();
             
             const request = {
-                origin: { lat: currentLat, lng: currentLon },
+                origin: { lat: currentLat, lng: lon },
                 destination: DESTINATION_INPUT,
                 travelMode: TRAVEL_MODE,
             };
@@ -240,14 +237,10 @@
             }
             
             directionsService.route(request, (response, status) => {
-                // *** DEBUGGING: LOG THE FULL RESPONSE TO CONSOLE ***
-                console.log("--- Google Maps Directions API Response ---");
-                console.log("Status:", status);
-                console.log("Full Response Object:", response);
-                console.log("-----------------------------------------");
-                
                 if (status === 'OK') {
                     const bestRoute = response.routes[0].legs[0]; 
+                    
+                    // The overall arrival time is the one causing the issue. We'll pass the raw value.
                     const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
                     
                     processSteps(currentLat, currentLon, bestRoute.steps, overallArrivalTime);
