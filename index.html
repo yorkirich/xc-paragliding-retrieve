@@ -3,34 +3,85 @@
 <head>
     <title>XCTrack Retrieve Planner</title>
     <style>
-        body { font-family: sans-serif; padding: 10px; background-color: #f4f4f9; color: #333; }
-        /* The result box is the only displayed element */
-        .result-box { 
-            border: 1px solid #007bff; 
-            background-color: #e6f2ff; 
-            margin-bottom: 10px; 
-            padding: 10px; 
-            border-radius: 5px; 
-            font-size: 1.1em;
-            line-height: 1.4;
+        /* ----------------------------------------------------- */
+        /* OPTIMIZED STYLES FOR XCTRACK/COMPCHECK LOOK AND FEEL */
+        /* ----------------------------------------------------- */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center; /* Center horizontally */
+            align-items: center;     /* Center vertically */
+            min-height: 100vh;       /* Ensure body takes full viewport height */
+        }
+        #results-container {
+            width: 90vw; /* Use a relative width for large screen area */
+            max-width: 400px; /* Maximize font size but keep constrained */
+            padding: 10px;
+            text-align: center;
+        }
+
+        /* Styling for the main output grid (TDP1 and TDP2) */
+        .output-grid {
+            display: grid;
+            /* Define 3 columns for Value, Unit/Mode, Time/Direction */
+            grid-template-columns: 1fr 0.5fr 1fr; 
+            gap: 1px; /* Grid line thickness */
+            background-color: #333; /* Dark color for grid lines */
+            color: #000;
+            border: 1px solid #333;
+        }
+
+        .grid-cell {
+            background-color: #fff; /* White cell background */
+            padding: 5px 0;
+            text-align: center;
+            /* Enforce specific font sizes for readability */
+        }
+
+        /* Large font for distance/time/mode */
+        .value-large {
+            font-size: 3em; /* Very large font for primary numbers */
+            font-weight: bold;
+            line-height: 1.1;
+        }
+
+        /* Medium font for units (km, SE) */
+        .value-medium {
+            font-size: 1.5em; /* Medium font for units and direction */
+            line-height: 1.1;
+        }
+
+        /* Error/Status messages */
+        #status-error {
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <div id="results">
-        </div>
+    <div id="results-container">
+        <div id="status-error" style="display:none;"></div> 
+        <div id="results" class="output-grid">
+            </div>
+    </div>
 
     <script>
         // =========================================================================
-        // XCTrack Paraglider Retrieve Planner Script (Minimalist Version)
+        // XCTrack Paraglider Retrieve Planner Script (Consolidated Logic)
+        // With Console Debugging and Optimized Layout Logic
         // =========================================================================
 
         let DESTINATION_INPUT = '';
         let TRAVEL_MODE; 
 
-        // --- Helper to convert timestamp (seconds) to HH:MM (24h format) ---
+        // --- Helper to format output time (hh:mm) from timestamp (seconds) ---
         function timestampToHHMM(timestamp) {
-            // `value` is in seconds, so convert to milliseconds
+            // value is in seconds, so convert to milliseconds
             const date = new Date(timestamp * 1000); 
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
@@ -68,94 +119,100 @@
             const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
             const direction = directions[Math.round(bearing / 45) % 8];
 
-            const displayDistance = distanceKm < 1 ? 
-                (distanceKm * 1000).toFixed(0) + ' m' : 
-                distanceKm.toFixed(1) + ' km';
+            // Distance as a number for large display, and unit for small display
+            const distanceNum = distanceKm.toFixed(1);
 
             return {
-                distance: displayDistance,
+                distanceNum: distanceNum,
+                unit: 'km',
                 direction: direction
             };
         }
 
-        // --- 3. Helper to format the succinct output ---
-        // Outputs two lines: 1.9km SE. BUS. | Dep:11:26. Arr: 03:45
-        function formatTDPResult(dist, dir, departureTime, vehicleType, totalArrivalTime) {
-            const resultsContainer = document.getElementById('results');
-            const box = document.createElement('div');
-            box.className = 'result-box';
-
-            // Line 1: Distance Direction. VehicleType
-            const line1 = `<span style="font-weight: bold;">${dist} ${dir}.</span> ${vehicleType}.`;
-
-            // Line 2: Dep:hh:mm. Arr: hh:mm
-            const line2 = `Dep:${departureTime}. Arr: ${totalArrivalTime}.`;
-
-            box.innerHTML = `<p>${line1}</p><p>${line2}</p>`;
-            return box;
+        // --- 3. Helper to format the optimized grid cells ---
+        function createGridCells(value1, unit1, value2, unit2, value3, unit3) {
+            return `
+                <div class="grid-cell value-large">${value1}</div>
+                <div class="grid-cell value-medium">${unit1}</div>
+                <div class="grid-cell value-large">${value2}</div>
+                
+                <div class="grid-cell value-large">${unit2}</div>
+                <div class="grid-cell value-large">${value3}</div>
+                <div class="grid-cell value-large">${unit3}</div>
+            `;
         }
-
+        
         // --- 4. Core Logic: Process API Steps and Display ---
-        function processSteps(currentLat, currentLon, steps, totalArrivalTime) {
+        function processSteps(currentLat, currentLon, steps, overallArrivalTime) {
             const resultsContainer = document.getElementById('results');
-            resultsContainer.innerHTML = ''; // Clear any loading messages
+            resultsContainer.innerHTML = ''; // Clear results
 
             if (TRAVEL_MODE === google.maps.TravelMode.TRANSIT) {
-                // Filter for steps that are actual public transport legs
                 const transportSteps = steps.filter(step => step.travel_mode === google.maps.TravelMode.TRANSIT.toUpperCase());
                 
-                // Get the first two departure points (TDP1 and TDP2)
                 const tdp1Step = transportSteps[0];
                 const tdp2Step = transportSteps[1];
                 
+                // TDP 1
                 if (tdp1Step && tdp1Step.transit) {
                     const details = tdp1Step.transit;
                     const tdp1Loc = details.departure_stop.location;
                     
-                    const { distance, direction } = calculateDistanceAndDirection(
+                    const { distanceNum, unit, direction } = calculateDistanceAndDirection(
                         currentLat, currentLon, tdp1Loc.lat(), tdp1Loc.lng()
                     );
                     
                     const departureTime = timestampToHHMM(details.departure_time.value);
-                    const vehicleType = details.line.vehicle.type;
+                    const vehicleType = details.line.vehicle.type.substring(0,4).toUpperCase().trim(); // BUS, RAIL, TRAM, etc.
 
-                    resultsContainer.appendChild(formatTDPResult(
-                        distance,
-                        direction,
-                        departureTime,
-                        vehicleType,
-                        totalArrivalTime
-                    ));
+                    // Row 1: Distance | km | SE
+                    // Row 2: BUS/RAIL | 07:20 (Departure Time) | (empty)
+                    resultsContainer.innerHTML += createGridCells(
+                        distanceNum, unit, direction,
+                        vehicleType, departureTime, ''
+                    );
                 }
-
+                
+                // Separator/Spacer Row (If both TDPs exist, or if we want a line)
+                if (tdp1Step && tdp2Step) {
+                    resultsContainer.innerHTML += `<div class="grid-cell" style="grid-column: 1 / span 3; padding: 1px; background-color: #f4f4f9;"></div>`;
+                }
+                
+                // TDP 2
                 if (tdp2Step && tdp2Step.transit) {
                     const details = tdp2Step.transit;
                     const tdp2Loc = details.departure_stop.location;
 
-                    // Note: Calculating distance from current location to TDP2 stop
-                    const { distance, direction } = calculateDistanceAndDirection(
+                    const { distanceNum, unit, direction } = calculateDistanceAndDirection(
                         currentLat, currentLon, tdp2Loc.lat(), tdp2Loc.lng()
                     );
-
+                    
                     const departureTime = timestampToHHMM(details.departure_time.value);
-                    const vehicleType = details.line.vehicle.type;
+                    const vehicleType = details.line.vehicle.type.substring(0,4).toUpperCase().trim();
 
-                    resultsContainer.appendChild(formatTDPResult(
-                        distance,
-                        direction,
-                        departureTime,
-                        vehicleType,
-                        totalArrivalTime
-                    ));
+                    // Row 3: Distance | km | E
+                    // Row 4: RAIL | 05:00 (Departure Time) | (empty)
+                    resultsContainer.innerHTML += createGridCells(
+                        distanceNum, unit, direction,
+                        vehicleType, departureTime, ''
+                    );
                 }
+
+                // Final Row: Total Arrival Time
+                resultsContainer.innerHTML += `
+                    <div class="grid-cell value-large" style="grid-column: 1 / span 2;">ARR</div>
+                    <div class="grid-cell value-large">${overallArrivalTime}</div>
+                `;
                 
                 if (!tdp1Step && !tdp2Step) {
-                    resultsContainer.innerHTML = `<p style="color:#dc3545;">No public transport route found. Status: ZERO_RESULTS.</p>`;
+                    document.getElementById('status-error').style.display = 'block';
+                    document.getElementById('status-error').innerText = 'NO TRANSIT FOUND.';
                 }
 
             } else {
-                // If not transit, display nothing as per the minimalist request focusing on TDPs
-                resultsContainer.innerHTML = '';
+                // Non-Transit Mode: Hide the grid, show a simple error (as requested to focus on TDPs)
+                document.getElementById('status-error').style.display = 'block';
+                document.getElementById('status-error').innerText = 'SUCCESS. Switch to &mode=transit for TDP display.';
             }
         }
 
@@ -176,25 +233,29 @@
             }
             
             directionsService.route(request, (response, status) => {
+                // *** DEBUGGING: LOG THE FULL RESPONSE TO CONSOLE ***
+                console.log("--- Google Maps Directions API Response ---");
+                console.log("Status:", status);
+                console.log("Full Response Object:", response);
+                console.log("-----------------------------------------");
+                
                 if (status === 'OK') {
                     const bestRoute = response.routes[0].legs[0]; 
-                    // Extract total arrival time for the entire journey
-                    const totalArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
+                    const overallArrivalTime = timestampToHHMM(bestRoute.arrival_time.value);
                     
-                    processSteps(currentLat, currentLon, bestRoute.steps, totalArrivalTime);
+                    processSteps(currentLat, currentLon, bestRoute.steps, overallArrivalTime);
                     
                 } else {
-                    document.getElementById('results').innerHTML = `<p style="color:#dc3545;">Directions request failed. Status: ${status}.</p>`;
+                    document.getElementById('status-error').style.display = 'block';
+                    document.getElementById('status-error').innerText = `API FAILED: ${status}`;
                 }
             });
         }
 
         // --- 6. Main Execution Flow (The Callback Function) ---
         window.initRetrieve = function() {
-            // 1. Set default mode to TRANSIT
             TRAVEL_MODE = google.maps.TravelMode.TRANSIT; 
             
-            // 2. Get Destination and Mode from URL
             DESTINATION_INPUT = getUrlParameter('dest');
             const modeParam = getUrlParameter('mode').toUpperCase(); 
             
@@ -203,11 +264,11 @@
             }
             
             if (!DESTINATION_INPUT) {
-                document.getElementById('results').innerHTML = "<p style='color:#dc3545;'>FATAL ERROR: Destination parameter 'dest' not found.</p>";
+                document.getElementById('status-error').style.display = 'block';
+                document.getElementById('status-error').innerText = "ERROR: Missing 'dest' parameter.";
                 return; 
             }
 
-            // 3. Start Geolocation
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -216,7 +277,8 @@
                         calculateRetrieveRoute(lat, lon);
                     },
                     (error) => {
-                        document.getElementById('results').innerHTML = `<p style="color:#dc3545;">Error getting location: ${error.message}.</p>`;
+                        document.getElementById('status-error').style.display = 'block';
+                        document.getElementById('status-error').innerText = `LOCATION ERROR: ${error.message}.`;
                     },
                     {
                         enableHighAccuracy: true,
@@ -225,7 +287,8 @@
                     }
                 );
             } else {
-                document.getElementById('results').innerHTML = "<p style='color:#dc3545;'>Geolocation is not supported by this browser/device.</p>";
+                document.getElementById('status-error').style.display = 'block';
+                document.getElementById('status-error').innerText = "ERROR: Geolocation not supported.";
             }
         }
     </script>
