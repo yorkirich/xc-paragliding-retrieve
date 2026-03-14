@@ -81,7 +81,7 @@
         // =========================================================================
 
         let DESTINATION_INPUT = '';
-        let TRAVEL_MODE = google.maps.TravelMode.DRIVING;; 
+        let TRAVEL_MODE; 
         
         // --- Helper to convert timestamp (seconds/string) to HH:MM (24h format) ---
         function timestampToHHMM(timestamp) {
@@ -269,7 +269,8 @@
 
         // --- 7. Main Execution Flow (The Callback Function) ---
         window.initRetrieve = function() {
-            TRAVEL_MODE = google.maps.TravelMode.TRANSIT; 
+//            TRAVEL_MODE = google.maps.TravelMode.TRANSIT; 
+            TRAVEL_MODE = google.maps.TravelMode.DRIVING;  // for testing purposes
             
             DESTINATION_INPUT = getUrlParameter('dest');
             const modeParam = getUrlParameter('mode').toUpperCase(); 
